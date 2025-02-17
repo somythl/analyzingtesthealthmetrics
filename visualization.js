@@ -3,7 +3,7 @@ d3.json("Data/average_hr.json").then(function(data) {
     const colors = { "Midterm 1": "steelblue", "Midterm 2": "orange", "Final": "green" };
 
     const width = 800, height = 400;
-    const margin = {top: 20, right: 30, bottom: 50, left: 70}; // Increased left margin for Y-axis label
+    const margin = {top: 20, right: 30, bottom: 50, left: 70};
 
     // **Clear existing SVG and buttons before appending new ones**
     d3.select("#chart").selectAll("svg").remove();
@@ -17,7 +17,17 @@ d3.json("Data/average_hr.json").then(function(data) {
         .append("g")
         .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-    // Initial X and Y scales (placeholders)
+    // Tooltip for hover line
+    const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("position", "absolute")
+        .style("background", "lightgray")
+        .style("padding", "5px")
+        .style("border-radius", "5px")
+        .style("display", "none")
+        .style("font-size", "14px");
+
+    // Initial X and Y scales
     let xScale = d3.scaleLinear().range([0, width]);
     let yScale = d3.scaleLinear().range([height, 0]);
 
@@ -25,20 +35,18 @@ d3.json("Data/average_hr.json").then(function(data) {
     const xAxisGroup = svg.append("g").attr("transform", `translate(0,${height})`);
     const yAxisGroup = svg.append("g");
 
-    // Add X-axis label
+    // X-axis label
     svg.append("text")
-        .attr("class", "x-label")
         .attr("x", width / 2)
-        .attr("y", height + 40) // Position below x-axis
+        .attr("y", height + 40)
         .attr("text-anchor", "middle")
         .style("font-size", "14px")
         .text("Minutes");
 
-    // Add Y-axis label
+    // Y-axis label
     svg.append("text")
-        .attr("class", "y-label")
         .attr("x", -height / 2)
-        .attr("y", -50) // Position to the left of y-axis
+        .attr("y", -50)
         .attr("transform", "rotate(-90)")
         .attr("text-anchor", "middle")
         .style("font-size", "14px")
@@ -52,30 +60,34 @@ d3.json("Data/average_hr.json").then(function(data) {
     // Active tests (start with Midterm 1 selected)
     let activeTests = new Set(["Midterm 1"]);
 
+    // Hover line
+    const hoverLine = svg.append("line")
+        .attr("class", "hover-line")
+        .attr("stroke", "black")
+        .attr("stroke-width", 1)
+        .attr("stroke-dasharray", "4 4")
+        .style("display", "none");
+
     function updateChart() {
-        svg.selectAll(".line").remove(); // Remove existing lines
+        svg.selectAll(".line").remove();
+        svg.selectAll(".end-line").remove();
+        svg.selectAll(".end-text").remove();
 
-        if (activeTests.size === 0) return; // No active tests, keep chart empty
+        if (activeTests.size === 0) return;
 
-        // Get max time (in minutes) based on selected tests
         let maxTime = Math.max(...[...activeTests].map(test => 
             d3.max(data[test], d => d["Time (s)"]) / 60
         ));
 
-        // Update X and Y scales
         xScale.domain([0, maxTime]);
         yScale.domain([
             d3.min(Object.values(data).flat(), d => d.HR),
             d3.max(Object.values(data).flat(), d => d.HR)
         ]);
 
-        // Animate X-axis transition
         xAxisGroup.transition().duration(1000).call(d3.axisBottom(xScale).ticks(10));
-
-        // Animate Y-axis transition
         yAxisGroup.transition().duration(1000).call(d3.axisLeft(yScale));
 
-        // Add lines for active tests with animation
         activeTests.forEach(test => {
             const path = svg.append("path")
                 .datum(data[test])
@@ -85,7 +97,6 @@ d3.json("Data/average_hr.json").then(function(data) {
                 .attr("stroke-width", 2)
                 .attr("d", line);
 
-            // Animate the line drawing
             const totalLength = path.node().getTotalLength();
             path
                 .attr("stroke-dasharray", totalLength + " " + totalLength)
@@ -94,6 +105,28 @@ d3.json("Data/average_hr.json").then(function(data) {
                 .duration(1000)
                 .ease(d3.easeLinear)
                 .attr("stroke-dashoffset", 0);
+
+            // End-of-test indicator
+            const endTime = d3.max(data[test], d => d["Time (s)"]) / 60;
+            svg.append("line")
+                .attr("class", "end-line")
+                .attr("x1", xScale(endTime))
+                .attr("x2", xScale(endTime))
+                .attr("y1", 0)
+                .attr("y2", height)
+                .attr("stroke", colors[test])
+                .attr("stroke-dasharray", "4 4")
+                .attr("stroke-width", 2)
+                .attr("opacity", 0.7);
+
+            // Add text for end-of-test marker
+            svg.append("text")
+                .attr("class", "end-text")
+                .attr("x", xScale(endTime) + 5)
+                .attr("y", 15)
+                .attr("fill", colors[test])
+                .style("font-size", "12px")
+                .text(`End of ${test}`);
         });
     }
 
@@ -110,7 +143,7 @@ d3.json("Data/average_hr.json").then(function(data) {
             .style("background", colors[test])
             .on("click", function() {
                 if (activeTests.has(test)) {
-                    if (activeTests.size > 1) { // Ensure at least one test is selected
+                    if (activeTests.size > 1) {
                         activeTests.delete(test);
                         d3.select(this).style("opacity", 0.5);
                     }
@@ -121,7 +154,6 @@ d3.json("Data/average_hr.json").then(function(data) {
                 updateChart();
             });
 
-        // Set initial opacity for Midterm 1 as selected
         if (test === "Midterm 1") {
             button.style("opacity", 1);
         } else {
@@ -129,5 +161,40 @@ d3.json("Data/average_hr.json").then(function(data) {
         }
     });
 
-    updateChart(); // Initialize with Midterm 1 selected
+    // Hover effect with a line
+    svg.append("rect")
+        .attr("width", width)
+        .attr("height", height)
+        .style("fill", "none")
+        .style("pointer-events", "all")
+        .on("mousemove", function(event) {
+            const mouseX = d3.pointer(event)[0];
+            const hoverTime = xScale.invert(mouseX);
+
+            hoverLine
+                .style("display", "block")
+                .attr("x1", mouseX)
+                .attr("x2", mouseX)
+                .attr("y1", 0)
+                .attr("y2", height);
+
+            let text = `Minute: ${Math.round(hoverTime)}<br>`;
+            activeTests.forEach(test => {
+                const closestPoint = data[test].reduce((prev, curr) => 
+                    Math.abs(curr["Time (s)"] / 60 - hoverTime) < Math.abs(prev["Time (s)"] / 60 - hoverTime) ? curr : prev
+                );
+                text += `${test} (BPM): ${closestPoint.HR.toFixed(2)}<br>`;
+            });
+
+            tooltip.html(text)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 20) + "px")
+                .style("display", "block");
+        })
+        .on("mouseout", () => {
+            hoverLine.style("display", "none");
+            tooltip.style("display", "none");
+        });
+
+    updateChart();
 });
