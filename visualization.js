@@ -17,6 +17,16 @@ d3.json("Data/average_hr.json").then(function(data) {
         .append("g")
         .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
+    const brush = d3.brushX()
+        .extent([[0, 0], [width, height]])  // Define brush area
+        .on("start", () => isBrushing = true)  // Disable hover while brushing
+        .on("brush", brushed)
+        .on("end", brushEnded);
+
+    
+    let isBrushing = false;
+        
+
     // Tooltip for hover line
     const tooltip = d3.select("body").append("div")
         .attr("class", "tooltip")
@@ -168,14 +178,57 @@ d3.json("Data/average_hr.json").then(function(data) {
             }
             
         });
-
-
-
-
-
-
-
     }
+
+    function brushed(event) {
+        if (!event.selection) return; // Exit if no selection
+        isBrushing = true;  // Prevent hover while brushing
+    
+        const [x0, x1] = event.selection.map(d => xScale.invert(d)); // Convert selection range to minutes
+    
+        let avgHRs = {}; // Store averages for each test
+    
+        activeTests.forEach(test => {
+            // Filter data within brushed range
+            const selectedData = data[test].filter(d => {
+                let timeMin = d["Time (s)"] / 60;
+                return timeMin >= x0 && timeMin <= x1;
+            });
+    
+            if (selectedData.length > 0) {
+                let avgHR = d3.mean(selectedData, d => d.HR);
+                avgHRs[test] = avgHR.toFixed(2);
+            }
+        });
+    
+        // Ensure event.sourceEvent exists before accessing its properties
+        if (event.sourceEvent) {
+            let avgText = `Selected Region: ${Math.round(x0)} - ${Math.round(x1)} min<br>`;
+            Object.entries(avgHRs).forEach(([test, avg]) => {
+                avgText += `${test} Avg HR: ${avg} bpm<br>`;
+            });
+    
+            tooltip.html(avgText)
+                .style("left", (event.sourceEvent.pageX + 10) + "px")
+                .style("top", (event.sourceEvent.pageY - 20) + "px")
+                .style("display", "block");
+        }
+    }
+    
+
+
+
+    function brushEnded(event) {
+        if (!event.selection) {
+            isBrushing = false;  // ✅ Allow hover-line to work again
+            tooltip.style("display", "none"); // Hide tooltip when not dragging
+        }
+        brushGroup.call(brush.move, null); // Clear brush selection after release
+    }
+    
+    
+    
+    
 
     // Create buttons
     const buttonContainer = d3.select("#buttons");
@@ -210,38 +263,57 @@ d3.json("Data/average_hr.json").then(function(data) {
 
     // Hover effect with a line
     svg.append("rect")
-        .attr("width", width)
-        .attr("height", height)
-        .style("fill", "none")
-        .style("pointer-events", "all")
-        .on("mousemove", function(event) {
-            const mouseX = d3.pointer(event)[0];
-            const hoverTime = xScale.invert(mouseX);
+    .attr("width", width)
+    .attr("height", height)
+    .style("fill", "none")
+    .style("pointer-events", "all")
+    .on("mousemove", function(event) {
+        if (isBrushing) return; // ✅ Prevent hover ONLY when actively brushing
 
-            hoverLine
-                .style("display", "block")
-                .attr("x1", mouseX)
-                .attr("x2", mouseX)
-                .attr("y1", 0)
-                .attr("y2", height);
+        const mouseX = d3.pointer(event)[0];
+        const hoverTime = xScale.invert(mouseX);
 
-            let text = `Minute: ${Math.round(hoverTime)}<br>`;
-            activeTests.forEach(test => {
+        hoverLine
+            .style("display", "block")
+            .attr("x1", mouseX)
+            .attr("x2", mouseX)
+            .attr("y1", 0)
+            .attr("y2", height);
+
+        let text = `Minute: ${Math.round(hoverTime)}<br>`;
+
+        activeTests.forEach(test => {
+            // Find the last recorded time for this test
+            const maxTestTime = Math.max(...data[test].map(d => d["Time (s)"] / 60));
+
+            if (hoverTime <= maxTestTime) {  // ✅ Ignore tests that have ended
                 const closestPoint = data[test].reduce((prev, curr) => 
                     Math.abs(curr["Time (s)"] / 60 - hoverTime) < Math.abs(prev["Time (s)"] / 60 - hoverTime) ? curr : prev
                 );
-                text += `${test} (BPM): ${closestPoint.HR.toFixed(2)}<br>`;
-            });
-
-            tooltip.html(text)
-                .style("left", (event.pageX + 10) + "px")
-                .style("top", (event.pageY - 20) + "px")
-                .style("display", "block");
-        })
-        .on("mouseout", () => {
-            hoverLine.style("display", "none");
-            tooltip.style("display", "none");
+                text += `${test}: ${closestPoint.HR.toFixed(2)} bpm<br>`;
+            }
         });
 
+        tooltip.html(text)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 20) + "px")
+            .style("display", "block");
+    })
+    .on("mouseout", () => {
+        if (!isBrushing) { // ✅ Ensure hover resets when brushing is done
+            hoverLine.style("display", "none");
+            tooltip.style("display", "none");
+        }
+    });
+
+
     updateChart();
+
+    const brushGroup = svg.append("g")
+    .attr("class", "brush")
+    .call(brush);
+    
+    brushGroup.style("pointer-events", "none");  // ✅ Prevents brush from blocking hover
+
+
 });
