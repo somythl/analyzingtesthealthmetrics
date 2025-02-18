@@ -26,13 +26,17 @@ main {
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     text-align: center;
+    overflow: visible; /* Ensure text doesn't get hidden */
 }
+
 
 #chart {
     width: 600px;
     height: 400px;
     margin: auto;
+    overflow: visible; /* Allow text to extend */
 }
+
 
 footer {
     background-color: #0077b6;
@@ -42,4 +46,29 @@ footer {
     position: fixed;
     bottom: 0;
     width: 100%;
+}
+
+#container {
+    display: flex;
+    justify-content: center;  /* Center content */
+    align-items: center;  
+    gap: 40px; /* Space between buttons and graph */
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+#buttons {
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    align-items: center;
+    gap: 10px;
+}
+
+
+button {
+    padding: 8px 15px;
+    width: 120px;
+    text-align: center;
+    border: 1px solid black;
+    cursor: pointer;
 }

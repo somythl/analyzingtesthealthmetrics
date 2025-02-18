@@ -2,8 +2,8 @@ d3.json("Data/average_hr.json").then(function(data) {
     const tests = ["Midterm 1", "Midterm 2", "Final"];
     const colors = { "Midterm 1": "steelblue", "Midterm 2": "orange", "Final": "green" };
 
-    const width = 800, height = 400;
-    const margin = {top: 20, right: 30, bottom: 50, left: 70};
+    const width = 500, height = 400;
+    const margin = {top: 20, right:100, bottom: 50, left: 70};
 
     // **Clear existing SVG and buttons before appending new ones**
     d3.select("#chart").selectAll("svg").remove();
@@ -88,6 +88,8 @@ d3.json("Data/average_hr.json").then(function(data) {
         xAxisGroup.transition().duration(1000).call(d3.axisBottom(xScale).ticks(10));
         yAxisGroup.transition().duration(1000).call(d3.axisLeft(yScale));
 
+        let endTimes = {}; // Store end times to manage combined labels
+
         activeTests.forEach(test => {
             const path = svg.append("path")
                 .datum(data[test])
@@ -106,28 +108,73 @@ d3.json("Data/average_hr.json").then(function(data) {
                 .ease(d3.easeLinear)
                 .attr("stroke-dashoffset", 0);
 
-            // End-of-test indicator
-            const endTime = d3.max(data[test], d => d["Time (s)"]) / 60;
+            // Store end times
+            const endTime = Math.round(d3.max(data[test], d => d["Time (s)"]) / 60); // Round to nearest minute
+            if (!endTimes[endTime]) endTimes[endTime] = [];
+            endTimes[endTime].push(test);
+
+
+            
+
+
+        });
+
+        console.log("End times object:", endTimes); // Shows all end times
+
+        Object.keys(endTimes).forEach(time => {
+            const testNames = endTimes[time]; // Tests that end at this time
+            console.log(`Processing end time at ${time} min for tests:`, testNames);
+
+            const hasFinal = testNames.includes("Final");
+            const hasMidterm = testNames.some(t => t.includes("Midterm"));
+
+            console.log(`At ${time} min -> hasFinal: ${hasFinal}, hasMidterm: ${hasMidterm}`);
+
+            // Ensure we are adding the red dashed line at the correct position
             svg.append("line")
                 .attr("class", "end-line")
-                .attr("x1", xScale(endTime))
-                .attr("x2", xScale(endTime))
+                .attr("x1", xScale(time))
+                .attr("x2", xScale(time))
                 .attr("y1", 0)
                 .attr("y2", height)
-                .attr("stroke", colors[test])
+                .attr("stroke", "red")
                 .attr("stroke-dasharray", "4 4")
                 .attr("stroke-width", 2)
                 .attr("opacity", 0.7);
 
-            // Add text for end-of-test marker
-            svg.append("text")
-                .attr("class", "end-text")
-                .attr("x", xScale(endTime) + 5)
-                .attr("y", 15)
-                .attr("fill", colors[test])
-                .style("font-size", "12px")
-                .text(`End of ${test}`);
+            let labelText = "";
+
+            // ✅ Debug which condition is triggered
+            if (hasFinal && !hasMidterm) {
+                labelText = "End of Final";  // Only Final selected
+            } else if (hasMidterm) {
+                labelText = "End of Midterm";  // Any midterm selected
+            }
+
+            console.log(`Label assigned at ${time} min: "${labelText}"`);
+
+            if (labelText !== "") {
+                const label = svg.append("text")
+                    .attr("class", "end-text")
+                    .attr("x", xScale(time) + 5)
+                    .attr("y", 15)
+                    .attr("fill", "red")
+                    .style("font-size", "12px");
+            
+                setTimeout(() => {
+                    label.text(labelText);
+                    console.log(`Final label assigned at ${time} min:`, labelText);
+                }, 100); // Delay to avoid overwriting
+            }
+            
         });
+
+
+
+
+
+
+
     }
 
     // Create buttons
