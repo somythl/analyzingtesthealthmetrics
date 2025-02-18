@@ -10,13 +10,20 @@
 </head>
 <body>
     <header>
-        <h1>Health Data Visualization</h1>
-        <p>Explore stress levels using HR and TEMP data</p>
+        <h1>Understanding Exam Stress: A Visual Exploration of Stress during Testing</h1>
+        <p>Exploring student stress levels during important exams utilizing heart rate (beats per minute).</p>
     </header>
     
     <main>
         <div id="buttons"></div>
         <div id="chart"></div>
+        <!-- Resting Heart Rate Input Section -->
+        <div id="input-section" style="margin-bottom: 20px; text-align: center;">
+            <label for="restingHR">Enter Your Resting Heart Rate (BPM): </label>
+            <input type="number" id="restingHR"  />
+            <button id="submitHR" style="padding: 8px 15px; cursor: pointer;">Submit</button>
+        </div>
+
 
         <script src="https://d3js.org/d3.v7.min.js"></script>
         <script src="visualization.js"></script>
