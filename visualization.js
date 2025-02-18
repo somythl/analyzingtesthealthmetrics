@@ -41,7 +41,7 @@ d3.json("Data/average_hr.json").then(function(data) {
         .attr("y", height + 40)
         .attr("text-anchor", "middle")
         .style("font-size", "14px")
-        .text("Minutes");
+        .text("Exam Duration (Minutes)");
 
     // Y-axis label
     svg.append("text")
