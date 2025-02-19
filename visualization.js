@@ -236,7 +236,7 @@ d3.json("Data/average_hr.json").then(function(data) {
     
         const [x0, x1] = event.selection.map(d => xScale.invert(d)); // Convert selection range to minutes
     
-        let avgHRs = {}; // Store averages for each test
+        let statsHRs = {}; // Store min, max, and averages for each test
     
         activeTests.forEach(test => {
             // Filter data within brushed range
@@ -246,24 +246,30 @@ d3.json("Data/average_hr.json").then(function(data) {
             });
     
             if (selectedData.length > 0) {
-                let avgHR = d3.mean(selectedData, d => d.HR);
-                avgHRs[test] = avgHR.toFixed(2);
+                let minHR = d3.min(selectedData, d => d.HR);
+                let maxHR = d3.max(selectedData, d => d.HR);
+                let avgHR = d3.mean(selectedData, d => d.HR).toFixed(2);
+                
+                // Store all three values for display
+                statsHRs[test] = { min: minHR, max: maxHR, avg: avgHR };
             }
         });
     
         // Ensure event.sourceEvent exists before accessing its properties
         if (event.sourceEvent) {
-            let avgText = `Selected Region: ${Math.round(x0)} - ${Math.round(x1)} min<br>`;
-            Object.entries(avgHRs).forEach(([test, avg]) => {
-                avgText += `${test} Avg HR: ${avg} bpm<br>`;
+            let statsText = `Selected Region: ${Math.round(x0)} - ${Math.round(x1)} min<br>`;
+    
+            Object.entries(statsHRs).forEach(([test, stats]) => {
+                statsText += `${test}: Min ${stats.min} | Max ${stats.max} | Avg ${stats.avg} bpm<br>`;
             });
     
-            tooltip.html(avgText)
+            tooltip.html(statsText)
                 .style("left", (event.sourceEvent.pageX + 10) + "px")
                 .style("top", (event.sourceEvent.pageY - 20) + "px")
                 .style("display", "block");
         }
     }
+    
     
 
     function brushEnded(event) {
@@ -276,7 +282,15 @@ d3.json("Data/average_hr.json").then(function(data) {
             isBrushing = true; // Keep the hover disabled while brushing
         }
     }
+
+
+
+
+
     
+
+
+
 
     // Create buttons
     const buttonContainer = d3.select("#buttons");
@@ -309,13 +323,6 @@ d3.json("Data/average_hr.json").then(function(data) {
         }
     });
     // Hover line setup
-const hoverLine = svg.append("line")
-.attr("class", "hover-line")
-.attr("stroke", "black")
-.attr("stroke-width", 1)
-.attr("stroke-dasharray", "4 4")
-.style("display", "none"); // Ensure it's hidden initially
-
 
 // Mouse move handler for hover effect
 svg.append("rect")
@@ -327,16 +334,8 @@ svg.append("rect")
     if (isBrushing) return; // Prevent hover while brushing
 
     const mouseX = d3.pointer(event)[0];
-    const hoverTime = xScale.invert(mouseX);  // Convert mouse position to time (in minutes)
 
-    hoverLine
-        .style("display", "block")
-        .attr("x1", mouseX)
-        .attr("x2", mouseX)
-        .attr("y1", 0)
-        .attr("y2", height);
 
-    let text = `Minute: ${Math.round(hoverTime)}<br>`;
 
     activeTests.forEach(test => {
         // Find the closest data point for the selected test
@@ -353,10 +352,11 @@ svg.append("rect")
         .style("top", (event.pageY - 20) + "px")
         .style("display", "block");
 })
-.on("mouseout", () => {
-    hoverLine.style("display", "none");  // Hide hover line on mouse out
-    tooltip.style("display", "none");  // Hide tooltip
-});
+
+
+
+
+
 
     
     /*
@@ -470,8 +470,6 @@ svg.append("rect")
     updateChart();
 
 }); 
-
-
 
 
 
